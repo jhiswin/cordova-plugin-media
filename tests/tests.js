@@ -258,6 +258,46 @@ exports.defineAutoTests = function () {
                 media.play();
             }, ACTUAL_PLAYBACK_TEST_TIMEOUT);
         });
+
+        it("media.spec.18 should contain a setRate function", function () {
+            var media1 = new Media("dummy");
+            expect(media1.setRate).toBeDefined();
+            expect(typeof media1.setRate).toBe('function');
+            media1.release();
+        });
+
+        it("media.spec.19 playback rate should be set properly using setRate", function (done) {
+            if (cordova.platformId !== 'ios') {
+                expect(true).toFailWithMessage('Platform does not supported this feature');
+                pending();
+                return;
+            }
+            var mediaFile = 'http://cordova.apache.org/downloads/BlueZedEx.mp3',
+                mediaState = Media.MEDIA_STOPPED,
+                successCallback,
+                flag = true,
+                statusChange = function (statusCode) {
+                    if (statusCode == Media.MEDIA_RUNNING && flag) {
+                        //flag variable used to ensure an extra security statement to ensure that the callback is processed only once,
+                        //in case for some reason the statusChange callback is reached more than one time with the same status code.
+                        //Some information about this kind of behavior it can be found at JIRA: CB-7099
+                        flag = false;
+                        setTimeout(function () {
+                            media1.getCurrentPosition(function (position) {
+                                //in four seconds expect position to be two times greater with some degree (1 sec) of accuracy
+                                expect(position).toBeGreaterThan(7);
+                                media1.stop();
+                                media1.release();
+                                done();
+                            }, failed.bind(null, done, 'media1.getCurrentPosition - Error getting media current position'));
+                        }, 4000);
+                    }
+                },
+                media1 = new Media(mediaFile, successCallback, failed.bind(null, done, 'media1 = new Media - Error creating Media object. Media file: ' + mediaFile), statusChange);
+            //make audio playback two times faster
+            media1.setRate(2);
+            media1.play();
+        });
     });
 };
 
@@ -480,7 +520,7 @@ exports.defineManualTests = function (contentEl, createActionButton) {
     function recordAudio() {
         console.log("recordAudio()");
         console.log(" -- media=" + mediaRec);
-        if (mediaRec == null) {
+        if (!mediaRec) {
             var src = recordSrc;
             mediaRec = new Media(src,
                     function () {
@@ -711,6 +751,14 @@ exports.defineManualTests = function (contentEl, createActionButton) {
                 row : 2,
                 cell : 2
             }
+        }, {
+            id: "halfSpeedBtn",
+            content:"",
+            tag:"div",
+            position:{
+                row:0,
+                cell:2
+            }
         }
     ],
     elementsRecord =
@@ -770,6 +818,21 @@ exports.defineManualTests = function (contentEl, createActionButton) {
     createActionButton('Pause', function () {
         pauseAudio();
     }, 'pauseBtn');
+    createActionButton('HalfSpeed', function() {
+    
+        if(halfSpeedBtn.firstChild.firstChild.innerText == 'HalfSpeed') {
+            halfSpeedBtn.firstChild.firstChild.innerText = 'FullSpeed';
+            media1.setRate(0.5);
+        }
+        else if(halfSpeedBtn.firstChild.firstChild.innerText == 'FullSpeed') {
+            halfSpeedBtn.firstChild.firstChild.innerText = 'DoubleSpeed';
+            media1.setRate(1.0);
+        }
+        else {
+            halfSpeedBtn.firstChild.firstChild.innerText = 'HalfSpeed';
+            media1.setRate(2.0);
+        }
+    }, 'halfSpeedBtn');
     createActionButton('Stop', function () {
         stopAudio();
     }, 'stopBtn');
